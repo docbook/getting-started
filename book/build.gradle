@@ -1,0 +1,155 @@
+buildscript {
+  repositories {
+    maven { url uri('/tmp/repo') }
+    mavenCentral()
+    maven { url "http://maven.restlet.org" }
+  }
+
+  dependencies {
+    classpath "org.docbook:docbook-xslt2:2.0.18"
+    classpath "com.xmlcalabash:xmlcalabash1-print:1.1.4"
+    classpath "com.xmlcalabash:xmlcalabash1-gradle:1.1.2"
+  }
+}
+
+repositories {
+  maven { url uri('/tmp/repo') }
+  mavenLocal()
+  mavenCentral()
+}
+
+apply plugin: 'org.docbook.task'
+apply plugin: 'com.xmlcalabash.task'
+
+import org.docbook.DocBookTask
+import com.xmlcalabash.XMLCalabashTask
+
+// ============================================================
+// The single-file HTML case
+
+task copyHtmlImages(type: Copy) {
+  from "src/img"
+  into "build/html/img"
+}
+
+task copyHtmlResources(type: Copy) {
+  from "resources"
+  into "build/html"
+}
+
+task copyHtmlFiles(dependsOn: ['copyHtmlImages', 'copyHtmlResources']) {
+  // nothing to see here
+}
+
+task html(dependsOn: copyHtmlFiles, type: DocBookTask) {
+  inputs.dir "src/xml"
+  outputs.dir "build/html"
+
+  input "src/xml/book.xml"
+  output "build/html/index.html"
+  style "docbook"
+  param("output.dir", System.getProperty('user.dir') + "/src/")
+  param("base.dir", "build/html/")
+  param("resource.root", "")
+
+  doFirst {
+    mkdir "build"
+    mkdir "build/html"
+  }
+}
+
+// ============================================================
+// The multi-file HTML case
+
+task copyChunkImages(type: Copy) {
+  from "src/img"
+  into "build/chunk/img"
+}
+
+task copyChunkResources(type: Copy) {
+  from "resources"
+  into "build/chunk"
+}
+
+task copyChunkFiles(dependsOn: ['copyChunkImages', 'copyChunkResources']) {
+  // nothing to see here
+}
+
+task chunk(dependsOn: copyChunkFiles, type: DocBookTask) {
+  inputs.dir "src/xml"
+  outputs.dir "build/chunk"
+
+  input "src/xml/book.xml"
+  style "chunk"
+  param("output.dir", System.getProperty('user.dir') + "/src/")
+  param("base.dir", "build/chunk/")
+  param("resource.root", "")
+
+  doFirst {
+    mkdir "build"
+    mkdir "build/chunk"
+  }
+}
+
+// ============================================================
+// The epub case
+/*
+
+task copyEpubImages(type: Copy) {
+  from "src/img"
+  into "build/epub/OEBPS/img"
+}
+
+task copyEpubResources(type: Copy) {
+  from "resources"
+  into "build/epub/OEBPS"
+}
+
+task copyEpubFiles(dependsOn: ['copyEpubImages', 'copyEpubResources']) {
+  // nothing to see here
+}
+
+task epub(dependsOn: copyEpubFiles, type: XMLCalabashTask) {
+  inputs.dir "src/xml"
+  outputs.dir "build/epub"
+
+  input("source", "src/xml/book.xml")
+  param("chunk.section.depth", "0")
+  param("output.dir", System.getProperty('user.dir') + "/src/")
+  param("base.dir", "build/epub/OEBPS/")
+  param("html.ext", ".xhtml")
+  param("resource.root", "")
+  pipeline "/projects/docbook/xslt20/xslt/base/pipelines/db2xhtml.xpl"
+  option("style", "epub")
+  option("format", "xhtml")
+
+  doFirst {
+    mkdir "build"
+    mkdir "build/epub"
+  }
+}
+
+task saveepub(dependsOn: copyEpubFiles, type: DocBookTask) {
+  inputs.dir "src/xml"
+  outputs.dir "build/epub"
+
+  input "src/xml/book.xml"
+  style "chunk"
+  format "xhtml"
+  param("chunk.section.depth", "0")
+  param("output.dir", System.getProperty('user.dir') + "/src/")
+  param("base.dir", "build/epub/OEBPS/")
+  param("html.ext", ".xhtml")
+  param("resource.root", "")
+
+  doFirst {
+    mkdir "build"
+    mkdir "build/epub"
+  }
+}
+*/
+
+task clean
+task clean.doFirst {
+  delete "build"
+}

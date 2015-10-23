@@ -1,0 +1,108 @@
+<book xmlns="http://docbook.org/ns/docbook"
+      xmlns:xi='http://www.w3.org/2001/XInclude'
+      version="5.0"
+      xml:id="book">
+<?dbhtml basename="index"?>
+<info>
+<title>The Book Title</title>
+<authorgroup>
+<author><orgname>Some Corporation</orgname></author>
+<author>
+  <personname>
+    <firstname>John</firstname>
+    <surname>Smith</surname>
+  </personname>
+  <email>john@example.com</email>
+</author>
+<editor>
+  <personname>
+    <firstname>Jane</firstname>
+    <surname>Doe</surname>
+  </personname>
+</editor>
+</authorgroup>
+<legalnotice>
+  <para>Some legal notice. Some legal notice. Some legal notice.
+  Some legal notice. Some legal notice. Some legal notice.
+  </para>
+</legalnotice>
+<copyright>
+  <year>2015</year>
+  <holder>John Smith</holder>
+</copyright>
+<pubdate>2015-09-23</pubdate>
+<abstract>
+  <para>Some abstract. Some abstract. Some abstract. Some abstract.
+  </para>
+  <para>Some abstract. Some abstract. Some abstract. Some abstract.
+  Some abstract. Some abstract. Some abstract. Some abstract.
+  </para>
+</abstract>
+</info>
+
+<dedication xml:id="ded1"><title>First Dedication</title>
+
+<para>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
+minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+aliquip ex ea commodo consequat. Duis aute irure dolor in
+reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
+pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim id est laborum.</para>
+
+<para>When in the Course of human events, it becomes necessary for one
+people to dissolve the political bands which have connected them with
+another, and to assume among the powers of the earth, the separate and
+equal station to which the Laws of Nature and of Nature's God entitle
+them, a decent respect to the opinions of mankind requires that they
+should declare the causes which impel them to the separation.</para>
+
+<para>We hold these truths to be self-evident, that all men are
+created equal, that they are endowed by their Creator with certain
+unalienable Rights, that among these are Life, Liberty and the pursuit
+of Happiness.--That to secure these rights, Governments are instituted
+among Men, deriving their just powers from the consent of the
+governed, --That whenever any Form of Government becomes destructive
+of these ends, it is the Right of the People to alter or to abolish
+it, and to institute new Government, laying its foundation on such
+principles and organizing its powers in such form, as to them shall
+seem most likely to effect their Safety and Happiness. Prudence,
+indeed, will dictate that Governments long established should not be
+changed for light and transient causes; and accordingly all experience
+hath shewn, that mankind are more disposed to suffer, while evils are
+sufferable, than to right themselves by abolishing the forms to which
+they are accustomed. But when a long train of abuses and usurpations,
+pursuing invariably the same Object evinces a design to reduce them
+under absolute Despotism, it is their right, it is their duty, to
+throw off such Government, and to provide new Guards for their future
+security.--Such has been the patient sufferance of these Colonies; and
+such is now the necessity which constrains them to alter their former
+Systems of Government. The history of the present King of Great
+Britain is a history of repeated injuries and usurpations, all having
+in direct object the establishment of an absolute Tyranny over these
+States. To prove this, let Facts be submitted to a candid world.</para>
+</dedication>
+
+<preface xml:id="forward">
+<?dbhtml basename="forward"?>
+<title>Foreword</title>
+
+<para>A preface with the title “Forward”.</para>
+
+<para>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
+minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+aliquip ex ea commodo consequat. Duis aute irure dolor in
+reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
+pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim id est laborum.</para>
+
+</preface>
+
+<xi:include href="chap001.xml"/>
+<xi:include href="chap002.xml"/>
+<xi:include href="chap003.xml"/>
+<xi:include href="appa.xml"/>
+<xi:include href="appb.xml"/>
+
+</book>
