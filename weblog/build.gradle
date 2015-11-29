@@ -1,0 +1,96 @@
+defaultTasks 'weblog'
+
+buildscript {
+  repositories {
+    maven { url uri('/tmp/repo') }
+    mavenCentral()
+    maven { url "http://maven.restlet.org" }
+  }
+
+  dependencies {
+    classpath "org.docbook:docbook-xslt2:2.0.19"
+    classpath "com.xmlcalabash:xmlcalabash1-gradle:1.1.2"
+  }
+}
+
+repositories {
+  maven { url uri('/tmp/repo') }
+  mavenLocal()
+  mavenCentral()
+}
+
+apply plugin: 'org.docbook.task'
+apply plugin: 'com.xmlcalabash.task'
+
+import org.docbook.DocBookTask
+import com.xmlcalabash.XMLCalabashTask
+
+// ============================================================
+// The single-file HTML case
+
+task copyHtmlImages(type: Copy) {
+  from "src/img"
+  into "build/html/img"
+}
+
+task copyHtmlResources(type: Copy) {
+  from "resources"
+  into "build/html"
+}
+
+task copyHtmlFiles(dependsOn: ['copyHtmlImages', 'copyHtmlResources']) {
+  // nothing to see here
+}
+
+task extractinfo(type: XMLCalabashTask) {
+  inputs.dir xmlInputDir
+  inputs.file "style/extractinfo.xpl"
+  outputs.file "build/info.xml"
+
+  output("result", "build/info.xml")
+  pipeline "style/extractinfo.xpl"
+  option("src", xmlInputDir)
+
+  doFirst {
+    mkdir "build"
+  }
+}
+
+task weblog(dependsOn: ['extractinfo', 'copyHtmlFiles']) {
+  // Nothing to see here; it's all about the dependencies
+}
+
+task clean
+task clean.doFirst {
+  delete "build"
+}
+
+/* Code to build dynamic tasks */
+
+fileTree(dir: xmlInputDir).collect { relativePath(it) }.each {
+  def source = it
+  def target = it.substring(xmlInputDir.length()).replaceAll('.xml$','.html')
+  def dir = it.substring(xmlInputDir.length()).replaceAll('[^/]+$', '')
+  def outdir = htmlOutputDir + dir
+
+  task "mkdir_${it}"() {
+    outputs.upToDateWhen { false }
+    doFirst {
+      mkdir(outdir)
+    }
+  }
+
+  task "xform_${it}"(dependsOn: "mkdir_${it}", type: DocBookTask) {
+    inputs.file source
+    outputs.file htmlOutputDir + target
+
+    input source
+    output htmlOutputDir + target
+    style "style/weblog.xsl"
+    param("output.dir", System.getProperty('user.dir') + "/src/")
+    param("base.dir", htmlOutputDir)
+    param("resource.root", "")
+  }
+
+  weblog.dependsOn "xform_${it}"
+}
