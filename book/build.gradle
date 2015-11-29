@@ -6,7 +6,7 @@ buildscript {
   }
 
   dependencies {
-    classpath "org.docbook:docbook-xslt2:2.0.18"
+    classpath "org.docbook:docbook-xslt2:2.0.19"
     classpath "com.xmlcalabash:xmlcalabash1-print:1.1.4"
     classpath "com.xmlcalabash:xmlcalabash1-gradle:1.1.2"
   }
