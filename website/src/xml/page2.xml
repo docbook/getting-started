@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article xmlns="http://docbook.org/ns/docbook"
+	 xmlns:xlink="http://www.w3.org/1999/xlink"
+         xmlns:h="http://www.w3.org/1999/xhtml"
+	 xml:id="home">
+<info>
+  <title>This is another another page</title>
+  <pubdate>2015-11-29T16:59:49Z</pubdate>
+</info>
+
+<para>This page has no inbound links. Is sekrit.</para>
+
+</article>
