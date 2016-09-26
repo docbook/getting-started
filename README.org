@@ -1,0 +1,4 @@
+The goal of this repository is to build some easy to follow
+“getting started” templates for various DocBook uses.
+
+It’s currently very much a work in progress.
