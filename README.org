@@ -15,7 +15,7 @@ There are currently three examples:
 :CUSTOM_ID: book
 :END:
 
-The [[tree/master/book][book]] example demonstrate formatting a book:
+The [[book][book]] example demonstrate formatting a book:
 
 + As a single HTML page
 + As a set of pages (chapters, sections, etc.)
@@ -27,6 +27,6 @@ The [[tree/master/book][book]] example demonstrate formatting a book:
 :CUSTOM_ID: weblog
 :END:
 
-The [[tree/master/weblog][weblog]] and [[tree/master/website][website]] examples are a little less complete. The
+The [[weblog][weblog]] and [[website][website]] examples are a little less complete. The
 principle difference is that the weblog example collates the whole
 site and can publish a reverse chronological index.
