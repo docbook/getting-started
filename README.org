@@ -1,4 +1,32 @@
-The goal of this repository is to build some easy to follow
-“getting started” templates for various DocBook uses.
+* Getting started
+:PROPERTIES:
+:CUSTOM_ID: getting-started
+:END:
 
-It’s currently very much a work in progress.
+The goal of this repository is to build some easy to follow “getting
+started” templates for various DocBook uses.
+
+It’s still a work in progress.
+
+There are currently three examples:
+
+** book
+:PROPERTIES:
+:CUSTOM_ID: book
+:END:
+
+The [[tree/master/book][book]] example demonstrate formatting a book:
+
++ As a single HTML page
++ As a set of pages (chapters, sections, etc.)
++ As an EPUB (with additional media and other resources)
++ For print with either AntennaHouse or PrinceXML.
+
+** weblog and website
+:PROPERTIES:
+:CUSTOM_ID: weblog
+:END:
+
+The [[tree/master/weblog][weblog]] and [[tree/master/website][website]] examples are a little less complete. The
+principle difference is that the weblog example collates the whole
+site and can publish a reverse chronological index.

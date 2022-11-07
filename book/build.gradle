@@ -1,155 +1,467 @@
 buildscript {
   repositories {
-    maven { url uri('/tmp/repo') }
+    mavenLocal()
     mavenCentral()
-    maven { url "http://maven.restlet.org" }
+    maven { url "https://dev.saxonica.com/maven" }
+  }
+
+  configurations.all {
+    resolutionStrategy {
+      force 'xml-apis:xml-apis:1.4.01',
+        "${saxonGroup}:${saxonEdition}:${saxonVersion}",
+        "org.xmlresolver:xmlresolver:${xmlresolverVersion}",
+        'org.nwalsh:sinclude:4.2.1'
+    }
   }
 
   dependencies {
-    classpath "org.docbook:docbook-xslt2:2.0.19"
-    classpath "com.xmlcalabash:xmlcalabash1-print:1.1.4"
-    classpath "com.xmlcalabash:xmlcalabash1-gradle:1.1.2"
+    classpath group: saxonGroup, name: saxonEdition, version: saxonVersion
+    classpath group: 'com.nwalsh', name: 'sinclude', version: '4.2.1'
+    classpath group: 'org.docbook', name: 'schemas-docbook', version: docbookVersion
+    classpath group: 'org.docbook', name: 'docbook-xslTNG', version: xslTNGversion
   }
 }
+
+plugins {
+  id "java"
+  id 'com.nwalsh.gradle.saxon.saxon-gradle' version '0.9.6'
+  id 'com.nwalsh.gradle.relaxng.validate' version '0.0.6'
+  id 'com.nwalsh.gradle.relaxng.translate' version '0.0.6'
+}
+
+import com.nwalsh.gradle.saxon.SaxonXsltTask
+import com.nwalsh.gradle.relaxng.validate.RelaxNGValidateTask
+import com.nwalsh.gradle.relaxng.translate.RelaxNGTranslateTask
+import org.docbook.xsltng.extensions.Register
+import com.nwalsh.sinclude.XInclude
 
 repositories {
-  maven { url uri('/tmp/repo') }
   mavenLocal()
   mavenCentral()
+  maven { url "https://dev.saxonica.com/maven" }
 }
 
-apply plugin: 'org.docbook.task'
-apply plugin: 'com.xmlcalabash.task'
-
-import org.docbook.DocBookTask
-import com.xmlcalabash.XMLCalabashTask
-
-// ============================================================
-// The single-file HTML case
-
-task copyHtmlImages(type: Copy) {
-  from "src/img"
-  into "build/html/img"
-}
-
-task copyHtmlResources(type: Copy) {
-  from "resources"
-  into "build/html"
-}
-
-task copyHtmlFiles(dependsOn: ['copyHtmlImages', 'copyHtmlResources']) {
-  // nothing to see here
-}
-
-task html(dependsOn: copyHtmlFiles, type: DocBookTask) {
-  inputs.dir "src/xml"
-  outputs.dir "build/html"
-
-  input "src/xml/book.xml"
-  output "build/html/index.html"
-  style "docbook"
-  param("output.dir", System.getProperty('user.dir') + "/src/")
-  param("base.dir", "build/html/")
-  param("resource.root", "")
-
-  doFirst {
-    mkdir "build"
-    mkdir "build/html"
+configurations.all {
+  resolutionStrategy {
+    force 'xml-apis:xml-apis:1.4.01',
+      "${saxonGroup}:${saxonEdition}:${saxonVersion}",
+      "org.xmlresolver:xmlresolver:${xmlresolverVersion}"
   }
+}
+
+configurations {
+  transform.extendsFrom(implementation)
+}
+
+dependencies {
+  implementation (
+    [group: saxonGroup, name: saxonEdition, version: saxonVersion],
+    [group: 'org.docbook', name: 'docbook-xslTNG', version: xslTNGversion],
+    [group: 'org.docbook', name: 'schemas-docbook', version: docbookVersion]
+  )
+}
+
+saxon.configure {
+  initializer 'org.docbook.xsltng.extensions.Register'
+}
+
+def customFonts = (findProperty('customFonts') ?: 'false') == 'true'
+
+public void expandXIncludes(File input, String outputFile) {
+  File output = project.file(outputFile)
+  XInclude xi = XInclude.newInstance()
+  xi.setFixupXmlBase(true)
+  xi.setFixupXmlLang(true)
+  xi.expandXIncludes(input, output);
 }
 
 // ============================================================
-// The multi-file HTML case
 
-task copyChunkImages(type: Copy) {
-  from "src/img"
-  into "build/chunk/img"
+task xinclude_book(
+) {
+  inputs.files fileTree("${projectDir}/src/xml")
+  outputs.file "${buildDir}/xinclude/book.xml"
+
+  doLast {
+    expandXIncludes(project.file("${projectDir}/src/xml/book.xml"),
+                    "${buildDir}/xinclude/book.xml")
+  }
 }
 
-task copyChunkResources(type: Copy) {
-  from "resources"
-  into "build/chunk"
+task validate_book(
+  type: RelaxNGValidateTask,
+  dependsOn: ["xinclude_book"]
+) {
+  input xinclude_book.outputs.getFiles().getSingleFile()
+  output "${buildDir}/valid/book.xml"
+  schema "${projectDir}/src/rng/book.rng"
 }
 
-task copyChunkFiles(dependsOn: ['copyChunkImages', 'copyChunkResources']) {
-  // nothing to see here
+// ============================================================
+
+task publishHtml(
+  type: SaxonXsltTask,
+  dependsOn: ['validate_book', 'copy_resources', 'copy_web_resources'],
+  description: 'Publish book as a single HTML page',
+  group: 'publish'
+) {
+  inputs.files fileTree("${projectDir}/src")
+
+  input validate_book.outputs.getFiles().getSingleFile()
+  output "${buildDir}/html/index.html"
+  stylesheet "${projectDir}/src/xsl/book.xsl"
+  parameters (
+    'debug': 'x-mediaobject-uris',
+    'mediaobject-input-base-uri': "file:${projectDir}/src/media/",
+    'mediaobject-output-base-uri': 'media/',
+    'user-css-links': customFonts ? "css/fonts.css css/book.css" : "css/book.css"
+  )
 }
 
-task chunk(dependsOn: copyChunkFiles, type: DocBookTask) {
-  inputs.dir "src/xml"
-  outputs.dir "build/chunk"
+// ============================================================
 
-  input "src/xml/book.xml"
-  style "chunk"
-  param("output.dir", System.getProperty('user.dir') + "/src/")
-  param("base.dir", "build/chunk/")
-  param("resource.root", "")
+task publishHtmlInPages(
+  type: SaxonXsltTask,
+  dependsOn: ['validate_book', 'copy_resources', 'copy_web_resources'],
+  description: 'Publish book as a set of linked HTML pages',
+  group: 'publish'
+) {
+  inputs.files fileTree("${projectDir}/src")
 
-  doFirst {
-    mkdir "build"
-    mkdir "build/chunk"
+  input validate_book.outputs.getFiles().getSingleFile()
+  output "${buildDir}/html/index.html"
+  stylesheet "${projectDir}/src/xsl/book.xsl"
+  parameters(
+    'chunk': 'index.html',
+    'chunk-output-base-uri': "${buildDir}/html/",
+    'user-css-links': customFonts ? "css/fonts.css css/book.css" : "css/book.css"
+  )
+}
+
+// ============================================================
+
+String EPUB_ROOT = "${buildDir}/epub"
+
+task epub_resources(
+  dependsOn: ['copy_resources','copy_epub_resources', 'copy_print_resources']
+) {
+  inputs.files fileTree(dir: "${buildDir}/html",
+                        includes: ["css/**", "media/**"])
+  outputs.files fileTree(dir: "${EPUB_ROOT}/OPS",
+                         includes: ["css/**", "media/**"])
+  outputs.file "${EPUB_ROOT}/manifest-extra.xml"
+
+  def epubMediaTypes = [
+    "css": "text/css",
+    "ttf": "font/ttf",
+    "woff": "font/woff",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+    "gif": "image/gif",
+    "svg": "image/svg"
+  ]
+
+  doLast {
+    copy {
+      into "${EPUB_ROOT}/OPS"
+      from "${buildDir}/html"
+      include 'media/**'
+      include 'css/**'
+      exclude 'css/docbook-paged*';
+      exclude 'css/docbook.*';
+      exclude 'css/docbook-toc.*';
+      exclude 'css/speaker-notes.*';
+      exclude 'css/print.*';
+    }
+  }
+
+  doLast {
+    def m = new PrintStream(new File("${EPUB_ROOT}/manifest-extra.xml"))
+    m.println("<manifest xmlns='http://www.idpf.org/2007/opf'>")
+    fileTree(dir: "${EPUB_ROOT}/OPS",
+             includes: ["media/**", "css/**"]).each { rsrc ->
+      String href = rsrc.toString()
+      int pos = href.indexOf("/OPS/")
+      href = href.substring(pos+5)
+      String id = href.replaceAll("/", "_")
+
+      pos = href.lastIndexOf(".")
+      String ext = href.substring(pos+1)
+      String mediaType = "application/octet-stream"
+
+      if (epubMediaTypes[ext] != null) {
+        mediaType = epubMediaTypes[ext]
+      } else {
+        println("Warning: Unknown media type: ${href}")
+      }
+
+      m.print("<item id='id_${id}' href='${href}' media-type='${mediaType}'")
+      if (mediaType == 'image/svg') {
+        m.print(" fallback='id_${id.replaceAll('.svg$', '.png')}'")
+      }
+      if (mediaType.startsWith('image/') && href.startsWith('media/cover.')) {
+        m.print(" properties='cover-image'")
+      }
+      m.println("/>")
+    }
+    m.println("</manifest>")
+    m.close()
+  }
+}
+
+task format_epub(
+  type: SaxonXsltTask,
+  dependsOn: ["validate_book", "epub_resources"]
+) {
+  inputs.files fileTree("${projectDir}/src")
+
+  inputs.file validate_book.outputs.getFiles().getSingleFile()
+  outputs.file "${EPUB_ROOT}/META-INF/mimetype"
+  outputs.files fileTree(dir: "${EPUB_ROOT}/META-INF")
+  outputs.files fileTree(dir: "${EPUB_ROOT}/OPS")
+
+  input validate_book.outputs.getFiles().getSingleFile()
+  output "${EPUB_ROOT}/mimetype"
+  stylesheet "${projectDir}/src/xsl/epub.xsl"
+  parameters(
+    'debug': '',
+    'pub-id': 'docbook-getting-started-sample',
+    'manifest-extra': "file://${EPUB_ROOT}/manifest-extra.xml",
+    'chunk-output-base-uri': "${EPUB_ROOT}/",
+    'mediaobject-input-base-uri': "file:${projectDir}/src/media/",
+    'mediaobject-output-base-uri': 'media/',
+    'user-css-links': customFonts ? "css/fonts.css css/book.css" : "css/book.css"
+  )
+}
+
+task publishEPUB(
+  dependsOn: ["format_epub"],
+  description: 'Publish book as an EPUB',
+  group: 'publish'
+) {
+  def epub_file = "${EPUB_ROOT}/docbook-getting-started-sample.epub"
+
+  inputs.file "${EPUB_ROOT}/mimetype"
+  inputs.files fileTree("${EPUB_ROOT}/META-INF")
+  inputs.files fileTree("${EPUB_ROOT}/OPS")
+  outputs.file epub_file
+
+  // Ideally, I'd use the Zip task in Gradle here in order
+  // to avoid the command-line dependency on "zip", but I
+  // can't work out any way to get the Zip task to use
+  // "stored" compression for the mimetype and "deflate"
+  // for everything else. Suggestions welcome.
+  doLast {
+    exec {
+      workingDir "${EPUB_ROOT}"
+      commandLine 'zip', '-q', '-X0', epub_file, 'mimetype'
+    }
+  }
+
+  doLast {
+    exec {
+      workingDir "${EPUB_ROOT}"
+      commandLine 'zip', '-q', '-rp', epub_file, 'META-INF', 'OPS'
+    }
+  }
+
+  doLast {
+    exec {
+      workingDir "${EPUB_ROOT}"
+      commandLine "epubcheck", epub_file
+    }
   }
 }
 
 // ============================================================
-// The epub case
-/*
 
-task copyEpubImages(type: Copy) {
-  from "src/img"
-  into "build/epub/OEBPS/img"
+task book_pdf_html(
+  type: SaxonXsltTask,
+  dependsOn: ["validate_book", "copy_resources", "copy_web_resources",
+              "copy_print_resources"]
+) {
+  inputs.files fileTree("${projectDir}/src")
+
+  input validate_book.outputs.getFiles().getSingleFile()
+  output "${buildDir}/html/book.pdf.html"
+  stylesheet "${projectDir}/src/xsl/print.xsl"
+  parameters (
+    'debug': 'x-mediaobject-uris',
+    'mediaobject-input-base-uri': "file:${projectDir}/src/media/",
+    'mediaobject-output-base-uri': 'media/',
+    'user-css-links': (customFonts
+                       ? "css/fonts.css css/book.css css/print.css"
+                       : "css/book.css css/print.css")
+  )
 }
 
-task copyEpubResources(type: Copy) {
-  from "resources"
-  into "build/epub/OEBPS"
-}
-
-task copyEpubFiles(dependsOn: ['copyEpubImages', 'copyEpubResources']) {
-  // nothing to see here
-}
-
-task epub(dependsOn: copyEpubFiles, type: XMLCalabashTask) {
-  inputs.dir "src/xml"
-  outputs.dir "build/epub"
-
-  input("source", "src/xml/book.xml")
-  param("chunk.section.depth", "0")
-  param("output.dir", System.getProperty('user.dir') + "/src/")
-  param("base.dir", "build/epub/OEBPS/")
-  param("html.ext", ".xhtml")
-  param("resource.root", "")
-  pipeline "/projects/docbook/xslt20/xslt/base/pipelines/db2xhtml.xpl"
-  option("style", "epub")
-  option("format", "xhtml")
-
-  doFirst {
-    mkdir "build"
-    mkdir "build/epub"
+if (pdfTool == "prince") {
+  task publishPdf(type: Exec,
+                  dependsOn: ["book_pdf_html"],
+                  description: 'Publish book as a PDF with PrinceXML',
+                  group: 'publish'
+  ) {
+    inputs.files fileTree(dir: "${buildDir}/html/css")
+    inputs.file("${buildDir}/html/book.pdf.html")
+    outputs.file("${buildDir}/book.pdf")
+    commandLine "${prince}",
+      "${buildDir}/html/book.pdf.html",
+      "-o", "${buildDir}/book.pdf"
+  }
+} else {
+  task publishPdf(type: Exec,
+                  dependsOn: ["book_pdf_html"],
+                  description: 'Publish book as a PDF with AntennaHouse',
+                  group: 'publish'
+  ) {
+    inputs.files fileTree(dir: "${buildDir}/html/css")
+    inputs.file("${buildDir}/html/book.pdf.html")
+    outputs.file("${buildDir}/book.pdf")
+    commandLine "${antennahouse}",
+      "-d", "${buildDir}/html/book.pdf.html",
+      "-o", "${buildDir}/book.pdf"
   }
 }
 
-task saveepub(dependsOn: copyEpubFiles, type: DocBookTask) {
-  inputs.dir "src/xml"
-  outputs.dir "build/epub"
+// ============================================================
 
-  input "src/xml/book.xml"
-  style "chunk"
-  format "xhtml"
-  param("chunk.section.depth", "0")
-  param("output.dir", System.getProperty('user.dir') + "/src/")
-  param("base.dir", "build/epub/OEBPS/")
-  param("html.ext", ".xhtml")
-  param("resource.root", "")
+task copy_docbook_resources() {
+  def dbjar = null
+  configurations.transform.each { path ->
+    if (path.toString().contains("docbook-xslTNG")) {
+      dbjar = path
+    }
+  }
 
-  doFirst {
-    mkdir "build"
-    mkdir "build/epub"
+  if (dbjar != null) {
+    inputs.file dbjar
+    outputs.files fileTree(dir: "${buildDir}/docbook-resources")
+  }
+
+  doLast {
+    if (dbjar == null) {
+      throw new GradleException("Failed to locate DocBook xslTNG jar file")
+    }
+
+    copy {
+      into "${buildDir}/docbook-resources"
+      from ({ zipTree(dbjar.toString()) }) {
+        include "org/docbook/xsltng/resources/**"
+      }
+      eachFile { fileCopyDetails ->
+        def originalPath = fileCopyDetails.path
+        fileCopyDetails.path = originalPath.replace('org/docbook/xsltng/resources/', '')
+      }
+      includeEmptyDirs = false
+    }
   }
 }
-*/
 
-task clean
-task clean.doFirst {
-  delete "build"
+task copy_resources(
+  dependsOn: ["copy_docbook_resources"]
+) {
+  inputs.files fileTree(dir: "${buildDir}/docbook-resouces")
+  inputs.files fileTree(dir: "${projectDir}/src/media")
+  inputs.files fileTree(dir: "${projectDir}/src/css")
+  inputs.files fileTree(dir: "${projectDir}/src/js")
+  outputs.files fileTree(dir: "${buildDir}/html/media")
+  outputs.files fileTree(dir: "${buildDir}/html/css")
+  outputs.files fileTree(dir: "${buildDir}/html/js")
+
+  doLast {
+    copy {
+      into "${buildDir}/html"
+      from "${buildDir}/docbook-resources"
+    }
+  }
+
+  doLast {
+    copy {
+      from "${projectDir}/src/media"
+      into "${buildDir}/html/media"
+    }
+  }
+
+  doLast {
+    copy {
+      from "${projectDir}/src/css"
+      into "${buildDir}/html/css"
+      exclude 'fonts-web.css'
+      exclude 'fonts-epub.css'
+    }
+  }
+
+  doLast {
+    copy {
+      from "${projectDir}/src/js"
+      into "${buildDir}/html/js"
+    }
+  }
+}
+
+task copy_web_resources(
+) {
+  if (customFonts) {
+    doLast {
+      copy {
+        from "${projectDir}/src/css"
+        into "${buildDir}/html/css"
+        include 'fonts-web.css'
+        rename('fonts-web.css', 'fonts.css')
+      }
+    }
+  }
+}
+
+task copy_epub_resources(
+) {
+  if (customFonts) {
+    doLast {
+      copy {
+        from "${projectDir}/src/css"
+        into "${buildDir}/epub/OPS/css"
+        include 'fonts-epub.css'
+        rename('fonts-epub.css', 'fonts.css')
+      }
+    }
+
+    doLast {
+      copy {
+        from "${projectDir}/src/fonts"
+        into "${buildDir}/epub/OPS/css/fonts"
+        include "**/*.ttf"
+        eachFile {
+          path = name
+        }
+        includeEmptyDirs = false
+      }
+    }
+  }
+}
+
+task copy_print_resources(
+  type: Copy
+) {
+  from "${projectDir}/src/fonts"
+  into "${buildDir}/html/css/fonts"
+  include "**/*.ttf"
+  eachFile {
+    path = name
+  }
+  includeEmptyDirs = false
+}
+
+// ============================================================
+// Testing task for various Gradle debugging efforts
+
+task helloWorld() {
+  doLast {
+    println("Hello, world.")
+    /*
+    configurations.transform.resolve().each { path ->
+      println(path)
+    }
+     */
+  }
 }

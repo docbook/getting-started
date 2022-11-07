@@ -1,96 +1,196 @@
-defaultTasks 'weblog'
-
 buildscript {
   repositories {
-    maven { url uri('/tmp/repo') }
+    mavenLocal()
     mavenCentral()
-    maven { url "http://maven.restlet.org" }
+    maven { url "https://dev.saxonica.com/maven" }
   }
 
-  dependencies {
-    classpath "org.docbook:docbook-xslt2:2.0.19"
-    classpath "com.xmlcalabash:xmlcalabash1-gradle:1.1.2"
-  }
-}
-
-repositories {
-  maven { url uri('/tmp/repo') }
-  mavenLocal()
-  mavenCentral()
-}
-
-apply plugin: 'org.docbook.task'
-apply plugin: 'com.xmlcalabash.task'
-
-import org.docbook.DocBookTask
-import com.xmlcalabash.XMLCalabashTask
-
-// ============================================================
-// The single-file HTML case
-
-task copyHtmlImages(type: Copy) {
-  from "src/img"
-  into "build/html/img"
-}
-
-task copyHtmlResources(type: Copy) {
-  from "resources"
-  into "build/html"
-}
-
-task copyHtmlFiles(dependsOn: ['copyHtmlImages', 'copyHtmlResources']) {
-  // nothing to see here
-}
-
-task extractinfo(type: XMLCalabashTask) {
-  inputs.dir xmlInputDir
-  inputs.file "style/extractinfo.xpl"
-  outputs.file "build/info.xml"
-
-  output("result", "build/info.xml")
-  pipeline "style/extractinfo.xpl"
-  option("src", xmlInputDir)
-
-  doFirst {
-    mkdir "build"
-  }
-}
-
-task weblog(dependsOn: ['extractinfo', 'copyHtmlFiles']) {
-  // Nothing to see here; it's all about the dependencies
-}
-
-task clean
-task clean.doFirst {
-  delete "build"
-}
-
-/* Code to build dynamic tasks */
-
-fileTree(dir: xmlInputDir).collect { relativePath(it) }.each {
-  def source = it
-  def target = it.substring(xmlInputDir.length()).replaceAll('.xml$','.html')
-  def dir = it.substring(xmlInputDir.length()).replaceAll('[^/]+$', '')
-  def outdir = htmlOutputDir + dir
-
-  task "mkdir_${it}"() {
-    outputs.upToDateWhen { false }
-    doFirst {
-      mkdir(outdir)
+  configurations.all {
+    resolutionStrategy {
+      force 'xml-apis:xml-apis:1.4.01',
+        "${saxonGroup}:${saxonEdition}:${saxonVersion}",
+        "org.xmlresolver:xmlresolver:${xmlresolverVersion}",
+        'org.nwalsh:sinclude:4.2.1'
     }
   }
 
-  task "xform_${it}"(dependsOn: "mkdir_${it}", type: DocBookTask) {
-    inputs.file source
-    outputs.file htmlOutputDir + target
+  dependencies {
+    classpath group: saxonGroup, name: saxonEdition, version: saxonVersion
+    classpath group: 'com.nwalsh', name: 'sinclude', version: '4.2.1'
+    classpath group: 'org.docbook', name: 'schemas-docbook', version: docbookVersion
+    classpath group: 'org.docbook', name: 'docbook-xslTNG', version: '1.11.0b1'
+  }
+}
 
-    input source
-    output htmlOutputDir + target
-    style "style/weblog.xsl"
-    param("output.dir", System.getProperty('user.dir') + "/src/")
-    param("base.dir", htmlOutputDir)
-    param("resource.root", "")
+plugins {
+  id "java"
+  id 'com.nwalsh.gradle.saxon.saxon-gradle' version '0.9.6'
+  id 'com.nwalsh.gradle.relaxng.validate' version '0.0.6'
+  id 'com.nwalsh.gradle.relaxng.translate' version '0.0.6'
+}
+
+import com.nwalsh.gradle.saxon.SaxonXsltTask
+import com.nwalsh.gradle.relaxng.validate.RelaxNGValidateTask
+import com.nwalsh.gradle.relaxng.translate.RelaxNGTranslateTask
+import org.docbook.xsltng.extensions.Register
+import com.nwalsh.sinclude.XInclude
+
+repositories {
+  mavenLocal()
+  mavenCentral()
+  maven { url "https://dev.saxonica.com/maven" }
+}
+
+configurations.all {
+  resolutionStrategy {
+    force 'xml-apis:xml-apis:1.4.01',
+      "${saxonGroup}:${saxonEdition}:${saxonVersion}",
+      "org.xmlresolver:xmlresolver:${xmlresolverVersion}"
+  }
+}
+
+configurations {
+  transform.extendsFrom(implementation)
+}
+
+dependencies {
+  implementation (
+    [group: saxonGroup, name: saxonEdition, version: saxonVersion],
+    [group: 'org.docbook', name: 'docbook-xslTNG', version: '1.11.0b1'],
+    [group: 'org.docbook', name: 'schemas-docbook', version: docbookVersion]
+  )
+}
+
+saxon.configure {
+  initializer 'org.docbook.xsltng.extensions.Register'
+}
+
+defaultTasks "weblog"
+
+task weblog(
+  dependsOn: ["copy_resources"],
+  description: "Build the weblog",
+  group: "weblog"
+) {
+  // Just somewhere to hang dependencies
+}
+
+task compile_info(
+  description: "Summarize all the weblog posts"
+) {
+  inputs.files fileTree("${buildDir}/extract")
+  outputs.file "${buildDir}/info.xml"
+
+  doLast {
+    def writer = new PrintStream(new File("${buildDir}/info.xml"))
+    writer.println("<article-info xmlns='http://docbook.org/ns/docbook'>")
+
+    fileTree(dir: "${buildDir}/extract", include: "**/*.xml").each { info ->
+      def reader = new BufferedReader(new FileReader(info))
+      String line = null
+      while ((line = reader.readLine()) != null) {
+        writer.println(line)
+      }
+      reader.close()
+    }
+
+    writer.println("</article-info>");
+    writer.close();
+  }
+}
+
+// Use gradle to construct tasks for each page
+def srcPrefixLen = "${projectDir}/src/xml".length()+1
+fileTree(dir: "${projectDir}/src/xml", include: "**/*.xml").each { xml ->
+  String html = "${buildDir}/weblog/" + xml.toString().substring(srcPrefixLen)
+  html = html.replaceAll('.xml$', '.html')
+  String taskName = xml.toString().substring(srcPrefixLen).replaceAll('/', '_')
+  taskName = 'task_' + taskName.replaceAll('.xml$', '')
+
+  Task t = task "extract_${taskName}"(
+    type: SaxonXsltTask
+  ) {
+    input xml
+    output "${buildDir}/extract/${taskName}.xml"
+    stylesheet "${projectDir}/style/extract.xsl"
+  }
+  compile_info.dependsOn t
+
+  t = task "${taskName}"(
+    type: SaxonXsltTask,
+    dependsOn: ["compile_info"]
+  ) {
+    inputs.files fileTree("${projectDir}/style")
+    inputs.file "${buildDir}/info.xml"
+
+    input xml
+    output html
+    stylesheet "${projectDir}/style/weblog.xsl"
+    parameters (
+    )
+  }
+  weblog.dependsOn t
+}
+
+// ============================================================
+
+task copy_docbook_resources() {
+  def dbjar = null
+  configurations.transform.each { path ->
+    if (path.toString().contains("docbook-xslTNG")) {
+      dbjar = path
+    }
   }
 
-  weblog.dependsOn "xform_${it}"
+  if (dbjar != null) {
+    inputs.file dbjar
+    outputs.files fileTree(dir: "${buildDir}/docbook-resources")
+  }
+
+  doLast {
+    if (dbjar == null) {
+      throw new GradleException("Failed to locate DocBook xslTNG jar file")
+    }
+
+    copy {
+      into "${buildDir}/docbook-resources"
+      from ({ zipTree(dbjar.toString()) }) {
+        include "org/docbook/xsltng/resources/**"
+      }
+      eachFile { fileCopyDetails ->
+        def originalPath = fileCopyDetails.path
+        fileCopyDetails.path = originalPath.replace('org/docbook/xsltng/resources/', '')
+      }
+      includeEmptyDirs = false
+    }
+  }
+}
+
+task copy_resources(
+  dependsOn: ["copy_docbook_resources"]
+) {
+  inputs.files fileTree(dir: "${buildDir}/docbook-resouces")
+  inputs.files fileTree(dir: "${projectDir}/resources")
+
+  doLast {
+    copy {
+      into "${buildDir}/weblog"
+      from "${buildDir}/docbook-resources"
+    }
+  }
+
+  doLast {
+    copy {
+      from "${projectDir}/resources"
+      into "${buildDir}/weblog"
+    }
+  }
+}
+
+// ============================================================
+
+task helloWorld() {
+  doLast {
+    println('Hello, world.')
+  }
 }

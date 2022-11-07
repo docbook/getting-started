@@ -1,0 +1,11 @@
+.mediaobject {
+    page-break-inside: avoid;
+    text-align: center;
+    padding-top: 1em;
+}
+
+picture img {
+    border-radius: 1em;
+    border: 1px solid #a7a7a7;
+    width: 50em;
+}

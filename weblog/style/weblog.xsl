@@ -1,33 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
-                xmlns:xs="http://www.w3.org/2001/XMLSchema"
-                xmlns:f="http://docbook.org/xslt/ns/extension"
                 xmlns:db="http://docbook.org/ns/docbook"
+                xmlns:f="http://docbook.org/ns/docbook/functions"
+                xmlns:m="http://docbook.org/ns/docbook/modes"
+                xmlns:t="http://docbook.org/ns/docbook/templates"
+                xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns="http://www.w3.org/1999/xhtml"
-		exclude-result-prefixes="f xs"
-                version="2.0">
+		exclude-result-prefixes="#all"
+                version="3.0">
 
-<xsl:import href="http://docbook.github.com/release/latest/xslt/base/html/final-pass.xsl"/>
+<!--
+<xsl:import href="https://cdn.docbook.org/release/xsltng/current/xslt/docbook.xsl"/>
+-->
+<xsl:import href="../../../xslTNG/build/xslt/docbook.xsl"/>
 
 <xsl:variable name="info" select="doc('../build/info.xml')/*"/>
 
-<xsl:template match="processing-instruction('weblog-index')">
+<xsl:template match="processing-instruction('weblog-index')" mode="m:docbook">
   <xsl:variable name="max"
-                select="xs:integer((f:pi-attribute(.,'max'),30)[1])"/>
+                select="xs:integer((f:pi(.,'max'),30)[1])"/>
 
   <xsl:variable name="skip"
-                select="$info/db:info[db:bibliomisc[@role='index']='false']"/>
+                select="$info/db:weblog[db:bibliomisc[@role='index']='false']"/>
 
-  <xsl:variable name="list" as="element(db:info)*">
-    <xsl:for-each select="$info/db:info except $skip">
-      <xsl:sort select="db:pubdate" order="descending"/>
-      <xsl:copy-of select="."/>
-    </xsl:for-each>
-  </xsl:variable>
-
-  <xsl:if test="not(empty($list))">
+  <xsl:if test="not(empty($info/db:weblog except $skip))">
     <div class="weblogindex">
-      <xsl:for-each select="$list[position() &lt;= $max]">
+      <xsl:for-each select="$info/db:weblog except $skip[position() &lt;= $max]">
+        <xsl:sort select="db:pubdate" order="descending"/>
+
         <div class="post">
           <div class="title">
             <xsl:value-of select="db:title"/>
