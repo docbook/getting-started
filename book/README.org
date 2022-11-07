@@ -1,0 +1,66 @@
+* Publishing a book
+:PROPERTIES:
+:CUSTOM_ID: book
+:END:
+
+This example relies on [[https://gradle.org/][Gradle]] for the build infrastructure. It could
+be managed with another build tool, or even simple scripts. Gradle is
+just a convenience.
+
+** Layout
+:PROPERTIES:
+:CUSTOM_ID: layout
+:END:
+
+The sources are under the ~src~ directory. Build outputs go in ~build~.
+
++ ~src/css~ contains CSS files for the published results.
++ ~src/js~ contains additional JavaScript files for the published results.
++ ~src/xml~ contains the book in DocBook XML.
++ ~src/fonts~ contains additional fonts (for EPUB and print output).
++ ~src/xsl~ contains the stylesheet customization layers.
++ ~src/rng~  contains a (vacuous) RELAX NG customization of DocBook.
++ ~src/media~ contains images and other media used by the book.
+
+** Configuration
+:PROPERTIES:
+:CUSTOM_ID: config
+:END:
+
+A number of configuration properties are stored in ~gradle.properties~. Most
+of them are version numbers for dependencies. In particular:
+
++ docbookVersion :: The DocBook version to use for schemas.
++ xslTNGversion :: The version of the DocBook xslTNG stylesheets to use. (1.11.0 or greater, please.)
++ saxonVersion :: The version of Saxon to use. 
++ pdfTool :: The formatter to use for PDF rendering, ~prince~ or ~antennahouse~.
++ antennahouse :: The path where AntennaHouse is installed.
++ prince :: The path where PrinceXML is installed.
+
+** Dependencies
+:PROPERTIES:
+:CUSTOM_ID: dependencies
+:END:
+
++ In order to produce PDF, you must have either PrinceXML or AntennaHouse.
++ In order to produce EPUB, you must have ~epubcheck~ on your path.
+
+** Running the build
+:PROPERTIES:
+:CUSTOM_ID: build
+:END:
+
+To format the book, run ~./gradlew target~ (On Windows ~.\gradlew target~) where
+/target/ is one of:
+
++ publishHtml :: Single page HTML version in ~build/html~
++ publishHtmlInPages :: Multi-page HTML version in ~build/html~
++ publishEPUB :: An EPUB in ~build/epub~
++ publishPDF :: A PDF in  ~build/book.pdf~
+
+There is also a runtime configuration property. If you run with the additional argument
+~-PcustomFonts=true~, the EPUB will include custom fonts.
+
+There are other build targets to explore. In particular building the EPUB requires several
+targets to copy resources under ~build/epub/OPS~ and construct the extra manifest
+entries for images, stylesheets, and, optionally, fonts.
