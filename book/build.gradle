@@ -159,7 +159,11 @@ task epub_resources(
     "jpeg": "image/jpeg",
     "png": "image/png",
     "gif": "image/gif",
-    "svg": "image/svg"
+    "svg": "image/svg",
+    "mp4": "video/mp4",
+    "webm": "video/webm",
+    "mp3": "audio/mp3",
+    "m4a": "audio/m4a"
   ]
 
   doLast {
